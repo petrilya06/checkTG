@@ -37,11 +37,10 @@ func HandleMessage(bot *tg.Bot, update *tg.Update) {
 		))
 
 		users[userID].State = StateChoosePic
-		SendPhotoKeyboard(bot, userID, Index)
+		SendPhotoKeyboard(bot, userID)
 	case "choose":
-		SendPhotoKeyboard(bot, userID, Index)
+		SendPhotoKeyboard(bot, userID)
 		users[userID].State = StateCheckPic
-		fmt.Println(users[userID].State)
 	case "check":
 		users[userID].State = StateWait
 	case "wait":
@@ -58,12 +57,27 @@ func HandleCallbackQuery(bot *tg.Bot, update *tg.Update) {
 			Index = 0 // Сброс индекса, если достигнут конец списка
 		}
 
-		EditText(bot, chatID, fmt.Sprintf("За данную аватарку будет выплачиться %s рублей", Price[Index]))
-		EditMedia(bot, chatID)
-		EditReplyMarkup(bot, chatID, InlineKeyboard)
+		EditPhotoKeyboard(bot, chatID)
 
-	case "1", "2":
+	case "150", "300":
 		EditText(bot, chatID, "Хотите оставить аватарку?")
 		EditReplyMarkup(bot, chatID, InlineKeyboardConfirm)
+
+	case "no":
+		EditPhotoKeyboard(bot, chatID)
+
+	case "yes":
+		if err := database.UpdateUser(db.User{
+			TgID:      chatID,
+			SelectPic: Index,
+			HasPic:    false,
+			HasText:   true,
+		}); err != nil {
+			log.Printf("error in update user pic: %v", err)
+		}
+
+		DeleteMessage(bot, chatID, []int{users[chatID].LastPhotoID, users[chatID].LastMessageID})
+		SendText(bot, chatID, fmt.Sprintf("Спасибо за подтверждение! Вам назначена выплата %s рублей", Price[Index]))
+		users[chatID].State = StateWait
 	}
 }

@@ -9,23 +9,6 @@ import (
 	tg "github.com/mymmrac/telego"
 )
 
-const (
-	StateStart     = "start"
-	StateChoosePic = "choose"
-	StateCheckPic  = "check"
-	StateWait      = "wait"
-)
-
-type UserState struct {
-	ID            int64
-	State         string
-	LastPhotoID   int
-	LastMessageID int
-}
-
-var users = make(map[int64]*UserState)
-var database *db.Database
-
 func Run() {
 	var err error
 	database, err = db.NewDatabase()

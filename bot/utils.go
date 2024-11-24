@@ -34,9 +34,15 @@ func SendPhoto(bot *tg.Bot, chatID int64, keyboard tg.InlineKeyboardMarkup) {
 	users[chatID].LastPhotoID = msg.MessageID
 }
 
-func SendPhotoKeyboard(bot *tg.Bot, chatID int64, index int) {
+func SendPhotoKeyboard(bot *tg.Bot, chatID int64) {
 	SendText(bot, chatID, fmt.Sprintf("Выбери подходяющую для вас аватарку\nЗа данную аватарку будет выплачиться %s рублей", Price[Index]))
 	SendPhoto(bot, chatID, InlineKeyboard)
+}
+
+func EditPhotoKeyboard(bot *tg.Bot, chatID int64) {
+	EditText(bot, chatID, fmt.Sprintf("За данную аватарку будет выплачиться %s рублей", Price[Index]))
+	EditMedia(bot, chatID)
+	EditReplyMarkup(bot, chatID, InlineKeyboard)
 }
 
 func EditText(bot *tg.Bot, chatID int64, msg string) {
@@ -60,5 +66,12 @@ func EditReplyMarkup(bot *tg.Bot, chatID int64, keyboard tg.InlineKeyboardMarkup
 		ChatID:      tu.ID(chatID),
 		MessageID:   users[chatID].LastPhotoID,
 		ReplyMarkup: &keyboard,
+	})
+}
+
+func DeleteMessage(bot *tg.Bot, chatID int64, message []int) {
+	_ = bot.DeleteMessages(&tg.DeleteMessagesParams{
+		ChatID:     tu.ID(chatID),
+		MessageIDs: message,
 	})
 }

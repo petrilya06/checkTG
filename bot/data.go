@@ -1,6 +1,26 @@
 package bot
 
-import tg "github.com/mymmrac/telego"
+import (
+	"github.com/checkTG/db"
+	tg "github.com/mymmrac/telego"
+)
+
+const (
+	StateStart     = "start"
+	StateChoosePic = "choose"
+	StateCheckPic  = "check"
+	StateWait      = "wait"
+)
+
+type UserState struct {
+	ID            int64
+	State         string
+	LastPhotoID   int
+	LastMessageID int
+}
+
+var users = make(map[int64]*UserState)
+var database *db.Database
 
 var Photos = []string{
 	"src/1.jpg",
@@ -34,7 +54,7 @@ var InlineKeyboard = tg.InlineKeyboardMarkup{
 		{
 			{
 				Text:         "Выбрать",
-				CallbackData: string(rune(Index)),
+				CallbackData: Price[Index],
 			},
 			{
 				Text:         "Следующая",
