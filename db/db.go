@@ -8,21 +8,21 @@ import (
 )
 
 type User struct {
-	PhoneNumber string
-	TgID        int
-	HasText     bool
-	HasPic      bool
+	TgID      int64
+	SelectPic int
+	HasText   bool
+	HasPic    bool
 }
 
 type Database struct {
 	conn *sql.DB
 }
 
-// NewDatabase создает новое соединение с базой данных
-func NewDatabase(connStr string) (*Database, error) {
+func NewDatabase() (*Database, error) {
+	connStr := "user=postgres password=qwerty123456 host=localhost sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, fmt.Errorf("can`t connect to db: %w", err)
+		return nil, fmt.Errorf("can't connect to db: %w", err)
 	}
 
 	if err := db.Ping(); err != nil {
@@ -32,26 +32,11 @@ func NewDatabase(connStr string) (*Database, error) {
 	return &Database{conn: db}, nil
 }
 
-// Close закрывает соединение с базой данных
-func (d *Database) Close() {
-	d.conn.Close()
-}
-
-func (d *Database) AddUser(phoneNumber string, tgID int, hasText bool, hasPic bool) error {
-	insertSQL := `INSERT INTO users (phone_number, tg_id, has_text, has_pic) VALUES ($1, $2, $3, $4)`
-	_, err := d.conn.Exec(insertSQL, phoneNumber, tgID, hasText, hasPic)
-	if err != nil {
-		return fmt.Errorf("error in insert: %w", err)
-	}
-
-	return nil
-}
-
 func (d *Database) CreateTable() error {
 	createTableSQL := `
     CREATE TABLE IF NOT EXISTS users (
-        phone_number VARCHAR(15) NOT NULL,
-        tg_id INT PRIMARY KEY,
+        tg_id BIGINT PRIMARY KEY,
+		select_pic INT,
         has_text BOOLEAN,
         has_pic BOOLEAN
     );`
@@ -63,9 +48,38 @@ func (d *Database) CreateTable() error {
 	return nil
 }
 
-func (d *Database) GetAllUsers() ([]User, error) {
-	rows, err := d.conn.Query("SELECT phone_number, tg_id, has_text, has_pic FROM users")
+func (d *Database) AddUser(user User) error {
+	insertSQL := `
+		INSERT INTO users (tg_id, select_pic, has_text, has_pic) 
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (tg_id) DO UPDATE 
+		SET select_pic = EXCLUDED.select_pic, 
+			has_text = EXCLUDED.has_text, 
+			has_pic = EXCLUDED.has_pic;`
 
+	_, err := d.conn.Exec(insertSQL, user.TgID, user.SelectPic, user.HasText, user.HasPic)
+	if err != nil {
+		return fmt.Errorf("error in insert: %w", err)
+	}
+
+	return nil
+}
+
+func (d *Database) UpdateUser(user User) error {
+	updateSQL := `
+		UPDATE users 
+		SET select_pic = $1, has_text = $2, has_pic = $3 
+		WHERE tg_id = $4`
+	_, err := d.conn.Exec(updateSQL, user.SelectPic, user.HasText, user.HasPic, user.TgID)
+	if err != nil {
+		return fmt.Errorf("error in update: %w", err)
+	}
+
+	return nil
+}
+
+func (d *Database) GetAllUsers() ([]User, error) {
+	rows, err := d.conn.Query("SELECT tg_id, select_pic, has_text, has_pic FROM users")
 	if err != nil {
 		return nil, fmt.Errorf("error in data: %w", err)
 	}
@@ -74,7 +88,7 @@ func (d *Database) GetAllUsers() ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.PhoneNumber, &user.TgID, &user.HasText, &user.HasPic); err != nil {
+		if err := rows.Scan(&user.TgID, &user.SelectPic, &user.HasText, &user.HasPic); err != nil {
 			return nil, fmt.Errorf("error in scan: %w", err)
 		}
 		users = append(users, user)
@@ -86,4 +100,10 @@ func (d *Database) GetAllUsers() ([]User, error) {
 	}
 
 	return users, nil
+}
+
+func (d *Database) Close() {
+	if err := d.conn.Close(); err != nil {
+		fmt.Printf("error closing database: %v\n", err)
+	}
 }
