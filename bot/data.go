@@ -3,6 +3,7 @@ package bot
 import (
 	"github.com/checkTG/db"
 	tg "github.com/mymmrac/telego"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 const (
@@ -33,6 +34,10 @@ var Price = []string{
 }
 
 var Index = 0
+
+var ChooseKeyboard = tu.Keyboard(
+	tu.KeyboardRow(tu.KeyboardButton("Выбрать аватарку")),
+).WithResizeKeyboard()
 
 var InlineKeyboardConfirm = tg.InlineKeyboardMarkup{
 	InlineKeyboard: [][]tg.InlineKeyboardButton{

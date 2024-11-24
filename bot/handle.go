@@ -34,10 +34,9 @@ func HandleMessage(bot *tg.Bot, update *tg.Update) {
 		_, _ = bot.SendMessage(tu.Message(
 			tu.ID(userID),
 			"Привет! Помогу вам подзаработать очень простым способом.",
-		))
+		).WithReplyMarkup(ChooseKeyboard))
 
 		users[userID].State = StateChoosePic
-		SendPhotoKeyboard(bot, userID)
 	case "choose":
 		SendPhotoKeyboard(bot, userID)
 		users[userID].State = StateCheckPic
