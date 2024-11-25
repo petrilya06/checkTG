@@ -2,6 +2,8 @@ package bot
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 
 	tg "github.com/mymmrac/telego"
@@ -74,4 +76,48 @@ func DeleteMessage(bot *tg.Bot, chatID int64, message []int) {
 		ChatID:     tu.ID(chatID),
 		MessageIDs: message,
 	})
+}
+
+func downloadPhoto(bot *tg.Bot, userID int64) {
+	profilePhotos, err := bot.GetUserProfilePhotos(&tg.GetUserProfilePhotosParams{
+		UserID: userID,
+		Limit:  1,
+		Offset: 0,
+	})
+	if err != nil {
+		fmt.Println("error in get user photo:", err)
+		return
+	}
+
+	if len(profilePhotos.Photos) == 0 {
+		fmt.Println("user doesn`t have a photo.")
+		return
+	}
+
+	photo := profilePhotos.Photos[0][0]
+	file, err := bot.GetFile(&tg.GetFileParams{FileID: photo.FileID})
+	if err != nil {
+		fmt.Println("error in get file:", err)
+		return
+	}
+
+	response, err := http.Get("https://api.telegram.org/file/bot" + os.Getenv("TOKEN") + "/" + file.FilePath)
+	if err != nil {
+		fmt.Println("error in download:", err)
+		return
+	}
+	defer response.Body.Close()
+
+	out, err := os.Create(fmt.Sprintf("src/photos/%d.jpg", users[userID].ID))
+	if err != nil {
+		fmt.Println("error in make a file:", err)
+		return
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, response.Body)
+	if err != nil {
+		fmt.Println("error in write to file:", err)
+		return
+	}
 }

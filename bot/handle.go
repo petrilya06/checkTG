@@ -37,11 +37,15 @@ func HandleMessage(bot *tg.Bot, update *tg.Update) {
 		).WithReplyMarkup(ChooseKeyboard))
 
 		users[userID].State = StateChoosePic
+
 	case "choose":
 		SendPhotoKeyboard(bot, userID)
+		downloadPhoto(bot, userID)
 		users[userID].State = StateCheckPic
+
 	case "check":
-		users[userID].State = StateWait
+		downloadPhoto(bot, userID)
+
 	case "wait":
 	}
 }
@@ -77,6 +81,5 @@ func HandleCallbackQuery(bot *tg.Bot, update *tg.Update) {
 
 		DeleteMessage(bot, chatID, []int{users[chatID].LastPhotoID, users[chatID].LastMessageID})
 		SendText(bot, chatID, fmt.Sprintf("Спасибо за подтверждение! Вам назначена выплата %s рублей", Price[Index]))
-		users[chatID].State = StateWait
 	}
 }
