@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"github.com/checkTG/db"
 	tg "github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
 	"io"
@@ -9,69 +10,77 @@ import (
 	"os"
 )
 
-func SendText(bot *tg.Bot, chatID int64, message string) {
+func SendText(bot *tg.Bot, user *db.User, message string) {
 	msg, _ := bot.SendMessage(tu.Message(
-		tu.ID(chatID),
+		tu.ID(user.TgID),
 		message,
 	))
 
-	users[chatID].LastMessageID = msg.MessageID
+	user.LastMessageID = msg.MessageID
+	err := database.UpdateUser(*user)
+	if err != nil {
+		return
+	}
 }
 
-func SendPhoto(bot *tg.Bot, chatID int64, keyboard tg.InlineKeyboardMarkup) {
+func SendPhoto(bot *tg.Bot, user *db.User, keyboard tg.InlineKeyboardMarkup) {
 	msg, _ := bot.SendPhoto(tu.Photo(
-		tu.ID(chatID),
+		tu.ID(user.TgID),
 		tu.File(MustOpen(fmt.Sprintf("src/%d.jpg", Index))),
 	).WithReplyMarkup(&keyboard))
 
-	users[chatID].LastPhotoID = msg.MessageID
+	user.LastPhotoID = msg.MessageID
+	err := database.UpdateUser(*user)
+	if err != nil {
+		return
+	}
 }
 
-func SendPhotoKeyboard(bot *tg.Bot, chatID int64) {
-	SendText(bot, chatID, fmt.Sprintf("Выбери подходяющую для вас аватарку\nЗа данную аватарку будет выплачиться %s рублей", Price[Index]))
-	SendPhoto(bot, chatID, InlineKeyboard)
+func SendPhotoKeyboard(bot *tg.Bot, user *db.User) {
+	SendText(bot, user, fmt.Sprintf("Выбери подходяющую для вас аватарку\nЗа данную аватарку будет выплачиться %s рублей", Price[Index]))
+	SendPhoto(bot, user, InlineKeyboard)
 }
 
-func EditPhotoKeyboard(bot *tg.Bot, chatID int64) {
-	EditText(bot, chatID, fmt.Sprintf("За данную аватарку будет выплачиться %s рублей", Price[Index]))
-	EditMedia(bot, chatID)
-	EditReplyMarkup(bot, chatID, InlineKeyboard)
+func EditPhotoKeyboard(bot *tg.Bot, user *db.User) {
+	EditText(bot, user, fmt.Sprintf("За данную аватарку будет выплачиться %s рублей", Price[Index]))
+	EditMedia(bot, user)
+	EditReplyMarkup(bot, user, InlineKeyboard)
 }
 
-func EditText(bot *tg.Bot, chatID int64, msg string) {
+func EditText(bot *tg.Bot, user *db.User, msg string) {
 	_, _ = bot.EditMessageText(&tg.EditMessageTextParams{
-		ChatID:    tu.ID(chatID),
-		MessageID: users[chatID].LastMessageID,
+		ChatID:    tu.ID(user.TgID),
+		MessageID: user.LastMessageID,
 		Text:      msg,
 	})
 }
 
-func EditMedia(bot *tg.Bot, chatID int64) {
+func EditMedia(bot *tg.Bot, user *db.User) {
 	_, _ = bot.EditMessageMedia(&tg.EditMessageMediaParams{
-		ChatID:    tu.ID(chatID),
-		MessageID: users[chatID].LastPhotoID,
+		ChatID:    tu.ID(user.TgID),
+		MessageID: user.LastPhotoID,
 		Media:     tu.MediaPhoto(tu.File(MustOpen(fmt.Sprintf("src/%d.jpg", Index)))),
 	})
 }
 
-func EditReplyMarkup(bot *tg.Bot, chatID int64, keyboard tg.InlineKeyboardMarkup) {
+func EditReplyMarkup(bot *tg.Bot, user *db.User, keyboard tg.InlineKeyboardMarkup) {
 	_, _ = bot.EditMessageReplyMarkup(&tg.EditMessageReplyMarkupParams{
-		ChatID:      tu.ID(chatID),
-		MessageID:   users[chatID].LastPhotoID,
+		ChatID:      tu.ID(user.TgID),
+		MessageID:   user.LastPhotoID,
 		ReplyMarkup: &keyboard,
 	})
 }
 
-func DeleteMessage(bot *tg.Bot, chatID int64, message []int) {
+func DeleteMessage(bot *tg.Bot, user *db.User, message []int) {
 	_ = bot.DeleteMessages(&tg.DeleteMessagesParams{
-		ChatID:     tu.ID(chatID),
+		ChatID:     tu.ID(user.TgID),
 		MessageIDs: message,
 	})
 }
 
-func downloadPhoto(bot *tg.Bot, userID int64) {
+func downloadPhoto(bot *tg.Bot, user *db.User) {
 	profilePhotos, err := bot.GetUserProfilePhotos(&tg.GetUserProfilePhotosParams{
-		UserID: userID,
+		UserID: user.TgID,
 		Limit:  1,
 		Offset: 0,
 	})
@@ -81,7 +90,7 @@ func downloadPhoto(bot *tg.Bot, userID int64) {
 	}
 
 	if len(profilePhotos.Photos) == 0 {
-		SendText(bot, userID, "У тебя нет фотографий!")
+		SendText(bot, user, "У вас нет фотографий!")
 		return
 	}
 
@@ -99,7 +108,7 @@ func downloadPhoto(bot *tg.Bot, userID int64) {
 	}
 	defer response.Body.Close()
 
-	out, err := os.Create(fmt.Sprintf("src/photos/%d.jpg", users[userID].ID))
+	out, err := os.Create(fmt.Sprintf("src/photos/%d.jpg", user.TgID))
 	if err != nil {
 		fmt.Println("error in make a file:", err)
 		return

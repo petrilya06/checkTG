@@ -2,25 +2,24 @@ package bot
 
 import (
 	"fmt"
-	"log"
-
 	"github.com/checkTG/db"
 	tg "github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
+	"log"
 )
 
-func HandleMessage(bot *tg.Bot, update *tg.Update) {
-	userID := int64(update.Message.Chat.ID)
-
+func HandleMessage(bot *tg.Bot, update *tg.Update, user *db.User, userID int64) {
 	if update.Message.Text == "/start" {
 		if _, exists := users[userID]; !exists {
-			users[userID] = &UserState{ID: userID, State: StateStart}
-
 			newUser := db.User{
-				TgID:      userID,
-				SelectPic: 0,
-				HasText:   false,
-				HasPic:    false,
+				TgID:          userID,
+				SelectPic:     0,
+				HasText:       false,
+				HasPic:        false,
+				Status:        StateStart,
+				CountCheck:    0,
+				LastMessageID: 0,
+				LastPhotoID:   0,
 			}
 
 			if err := database.AddUser(newUser); err != nil {
@@ -29,30 +28,48 @@ func HandleMessage(bot *tg.Bot, update *tg.Update) {
 		}
 	}
 
-	switch users[userID].State {
+	fmt.Println(user)
+	switch user.Status {
 	case "start":
 		_, _ = bot.SendMessage(tu.Message(
 			tu.ID(userID),
 			"Привет! Помогу вам подзаработать очень простым способом.",
 		).WithReplyMarkup(ChooseKeyboard))
 
-		users[userID].State = StateChoosePic
+		user.Status = StateChoosePic
+		err := database.UpdateUser(*user)
+		if err != nil {
+			return
+		}
 
 	case "choose":
-		SendPhotoKeyboard(bot, userID)
-		downloadPhoto(bot, userID)
-		users[userID].State = StateCheckPic
+		SendPhotoKeyboard(bot, user)
+		downloadPhoto(bot, user)
+		fmt.Println(user.LastMessageID, user.LastPhotoID)
+
+		user.Status = StateCheckPic
+		err := database.UpdateUser(*user)
+		if err != nil {
+			return
+		}
 
 	case "check":
-		downloadPhoto(bot, userID)
+		fmt.Println(user)
+		downloadPhoto(bot, user)
+		ComparePhotos(fmt.Sprintf("src/%d.jpg", Index),
+			fmt.Sprintf("src/photos/%d.jpg", user.TgID))
+
+		user.Status = StateWait
+		err := database.UpdateUser(*user)
+		if err != nil {
+			return
+		}
 
 	case "wait":
 	}
 }
 
-func HandleCallbackQuery(bot *tg.Bot, update *tg.Update) {
-	chatID := update.CallbackQuery.From.ID
-
+func HandleCallbackQuery(bot *tg.Bot, update *tg.Update, user *db.User, userID int64) {
 	switch update.CallbackQuery.Data {
 	case "next":
 		Index += 1
@@ -60,26 +77,24 @@ func HandleCallbackQuery(bot *tg.Bot, update *tg.Update) {
 			Index = 0 // Сброс индекса, если достигнут конец списка
 		}
 
-		EditPhotoKeyboard(bot, chatID)
+		EditPhotoKeyboard(bot, user)
 
 	case "150", "300":
-		EditText(bot, chatID, "Хотите оставить аватарку?")
-		EditReplyMarkup(bot, chatID, InlineKeyboardConfirm)
+		EditText(bot, user, "Хотите оставить аватарку?")
+		EditReplyMarkup(bot, user, InlineKeyboardConfirm)
 
 	case "no":
-		EditPhotoKeyboard(bot, chatID)
+		EditPhotoKeyboard(bot, user)
 
 	case "yes":
 		if err := database.UpdateUser(db.User{
-			TgID:      chatID,
+			TgID:      userID,
 			SelectPic: Index,
-			HasPic:    false,
-			HasText:   true,
 		}); err != nil {
 			log.Printf("error in update user pic: %v", err)
 		}
 
-		DeleteMessage(bot, chatID, []int{users[chatID].LastPhotoID, users[chatID].LastMessageID})
-		SendText(bot, chatID, fmt.Sprintf("Спасибо за подтверждение! Вам назначена выплата %s рублей", Price[Index]))
+		DeleteMessage(bot, user, []int{user.LastPhotoID, user.LastMessageID})
+		SendText(bot, user, fmt.Sprintf("Спасибо за подтверждение! Вам назначена выплата %s рублей", Price[Index]))
 	}
 }

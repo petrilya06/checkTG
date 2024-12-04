@@ -37,11 +37,17 @@ func Run() {
 
 	for update := range updates {
 		if update.Message != nil {
-			HandleMessage(bot, &update)
+			userID := update.Message.Chat.ID
+			user, _ := database.GetUserByID(userID)
+
+			HandleMessage(bot, &update, user, userID)
 		}
 
 		if update.CallbackQuery != nil {
-			HandleCallbackQuery(bot, &update)
+			userID := update.CallbackQuery.From.ID
+			user, _ := database.GetUserByID(userID)
+
+			HandleCallbackQuery(bot, &update, user, userID)
 		}
 	}
 }

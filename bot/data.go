@@ -13,14 +13,7 @@ const (
 	StateWait      = "wait"
 )
 
-type UserState struct {
-	ID            int64
-	State         string
-	LastPhotoID   int
-	LastMessageID int
-}
-
-var users = make(map[int64]*UserState)
+var users = make(map[int64]db.User)
 var database *db.Database
 
 var Photos = []string{
@@ -34,7 +27,6 @@ var Price = []string{
 }
 
 var Index = 0
-
 var ChooseKeyboard = tu.Keyboard(
 	tu.KeyboardRow(tu.KeyboardButton("Выбрать аватарку")),
 ).WithResizeKeyboard()
