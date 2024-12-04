@@ -13,7 +13,6 @@ const (
 	StateWait      = "wait"
 )
 
-var users = make(map[int64]db.User)
 var database *db.Database
 
 var Photos = []string{

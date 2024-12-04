@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -41,13 +42,15 @@ func Run() {
 			user, _ := database.GetUserByID(userID)
 
 			HandleMessage(bot, &update, user, userID)
+			fmt.Println(user)
 		}
 
 		if update.CallbackQuery != nil {
 			userID := update.CallbackQuery.From.ID
 			user, _ := database.GetUserByID(userID)
 
-			HandleCallbackQuery(bot, &update, user, userID)
+			HandleCallbackQuery(bot, &update, user)
+			fmt.Println(user)
 		}
 	}
 }

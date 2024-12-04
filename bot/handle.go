@@ -10,25 +10,22 @@ import (
 
 func HandleMessage(bot *tg.Bot, update *tg.Update, user *db.User, userID int64) {
 	if update.Message.Text == "/start" {
-		if _, exists := users[userID]; !exists {
-			newUser := db.User{
-				TgID:          userID,
-				SelectPic:     0,
-				HasText:       false,
-				HasPic:        false,
-				Status:        StateStart,
-				CountCheck:    0,
-				LastMessageID: 0,
-				LastPhotoID:   0,
-			}
+		newUser := db.User{
+			TgID:          userID,
+			SelectPic:     0,
+			HasText:       false,
+			HasPic:        false,
+			Status:        StateStart,
+			CountCheck:    0,
+			LastMessageID: 0,
+			LastPhotoID:   0,
+		}
 
-			if err := database.AddUser(newUser); err != nil {
-				log.Printf("error in add user: %v", err)
-			}
+		if err := database.AddUser(newUser); err != nil {
+			log.Printf("error in add user: %v", err)
 		}
 	}
 
-	fmt.Println(user)
 	switch user.Status {
 	case "start":
 		_, _ = bot.SendMessage(tu.Message(
@@ -45,7 +42,6 @@ func HandleMessage(bot *tg.Bot, update *tg.Update, user *db.User, userID int64) 
 	case "choose":
 		SendPhotoKeyboard(bot, user)
 		downloadPhoto(bot, user)
-		fmt.Println(user.LastMessageID, user.LastPhotoID)
 
 		user.Status = StateCheckPic
 		err := database.UpdateUser(*user)
@@ -54,9 +50,8 @@ func HandleMessage(bot *tg.Bot, update *tg.Update, user *db.User, userID int64) 
 		}
 
 	case "check":
-		fmt.Println(user)
 		downloadPhoto(bot, user)
-		ComparePhotos(fmt.Sprintf("src/%d.jpg", Index),
+		ComparePhotos(fmt.Sprintf("src/%d.jpg", user.SelectPic),
 			fmt.Sprintf("src/photos/%d.jpg", user.TgID))
 
 		user.Status = StateWait
@@ -66,10 +61,11 @@ func HandleMessage(bot *tg.Bot, update *tg.Update, user *db.User, userID int64) 
 		}
 
 	case "wait":
+
 	}
 }
 
-func HandleCallbackQuery(bot *tg.Bot, update *tg.Update, user *db.User, userID int64) {
+func HandleCallbackQuery(bot *tg.Bot, update *tg.Update, user *db.User) {
 	switch update.CallbackQuery.Data {
 	case "next":
 		Index += 1
@@ -87,14 +83,13 @@ func HandleCallbackQuery(bot *tg.Bot, update *tg.Update, user *db.User, userID i
 		EditPhotoKeyboard(bot, user)
 
 	case "yes":
-		if err := database.UpdateUser(db.User{
-			TgID:      userID,
-			SelectPic: Index,
-		}); err != nil {
-			log.Printf("error in update user pic: %v", err)
+		user.SelectPic = Index
+		err := database.UpdateUser(*user)
+		if err != nil {
+			return
 		}
 
-		DeleteMessage(bot, user, []int{user.LastPhotoID, user.LastMessageID})
+		DeleteMessages(bot, user, []int{user.LastPhotoID, user.LastMessageID})
 		SendText(bot, user, fmt.Sprintf("Спасибо за подтверждение! Вам назначена выплата %s рублей", Price[Index]))
 	}
 }
