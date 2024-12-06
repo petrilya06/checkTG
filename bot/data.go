@@ -10,7 +10,6 @@ const (
 	StateStart     = "start"
 	StateChoosePic = "choose"
 	StateCheckPic  = "check"
-	StateWait      = "wait"
 )
 
 var database *db.Database
@@ -28,7 +27,7 @@ var Price = []string{
 var Index = 0
 var ChooseKeyboard = tu.Keyboard(
 	tu.KeyboardRow(tu.KeyboardButton("Выбрать аватарку")),
-).WithResizeKeyboard()
+).WithResizeKeyboard().WithOneTimeKeyboard()
 
 var InlineKeyboardConfirm = tg.InlineKeyboardMarkup{
 	InlineKeyboard: [][]tg.InlineKeyboardButton{

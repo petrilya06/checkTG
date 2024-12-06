@@ -23,10 +23,23 @@ func SendText(bot *tg.Bot, user *db.User, message string) {
 	}
 }
 
+func SendTextWithKeyboard(bot *tg.Bot, user *db.User, message string, keyboard *tg.ReplyKeyboardMarkup) {
+	msg, _ := bot.SendMessage(tu.Message(
+		tu.ID(user.TgID),
+		message,
+	).WithReplyMarkup(keyboard))
+
+	user.LastMessageID = msg.MessageID
+	err := database.UpdateUser(*user)
+	if err != nil {
+		return
+	}
+}
+
 func SendPhoto(bot *tg.Bot, user *db.User, keyboard tg.InlineKeyboardMarkup) {
 	msg, _ := bot.SendPhoto(tu.Photo(
 		tu.ID(user.TgID),
-		tu.File(MustOpen(fmt.Sprintf("src/%d.jpg", user.SelectPic))),
+		tu.File(MustOpen(fmt.Sprintf("src/%d.jpg", Index))),
 	).WithReplyMarkup(&keyboard))
 
 	user.LastPhotoID = msg.MessageID
@@ -37,14 +50,15 @@ func SendPhoto(bot *tg.Bot, user *db.User, keyboard tg.InlineKeyboardMarkup) {
 }
 
 func SendPhotoKeyboard(bot *tg.Bot, user *db.User) {
-	SendText(bot, user, fmt.Sprintf("Выбери подходяющую для вас аватарку\n"+
-		"За данную аватарку будет выплачиться %s рублей", Price[user.SelectPic]))
+	SendText(bot, user, fmt.Sprintf("Выберите подходяющую для вас аватарку\n"+
+		"За данную аватарку будет выплачиться %s рублей",
+		Price[Index]))
 	SendPhoto(bot, user, InlineKeyboard)
 }
 
 func EditPhotoKeyboard(bot *tg.Bot, user *db.User) {
 	EditText(bot, user, fmt.Sprintf("За данную аватарку будет выплачиться "+
-		"%s рублей", Price[user.SelectPic]))
+		"%s рублей", Price[Index]))
 	EditMedia(bot, user)
 	EditReplyMarkup(bot, user, InlineKeyboard)
 }
@@ -61,7 +75,7 @@ func EditMedia(bot *tg.Bot, user *db.User) {
 	_, _ = bot.EditMessageMedia(&tg.EditMessageMediaParams{
 		ChatID:    tu.ID(user.TgID),
 		MessageID: user.LastPhotoID,
-		Media:     tu.MediaPhoto(tu.File(MustOpen(fmt.Sprintf("src/%d.jpg", user.SelectPic)))),
+		Media:     tu.MediaPhoto(tu.File(MustOpen(fmt.Sprintf("src/%d.jpg", Index)))),
 	})
 }
 

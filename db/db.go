@@ -57,19 +57,16 @@ func (d *Database) CreateTable() error {
 }
 
 func (d *Database) AddUser(user User) error {
+	deleteSQL := `DELETE FROM users WHERE tg_id = $1;`
+	_, err := d.conn.Exec(deleteSQL, user.TgID)
+	if err != nil {
+		return fmt.Errorf("error in delete: %w", err)
+	}
+
 	insertSQL := `
 		INSERT INTO users (tg_id, select_pic, has_text, has_pic, count_check, status, last_photo_id, last_message_id) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (tg_id) DO UPDATE 
-		SET select_pic = EXCLUDED.select_pic, 
-			has_text = EXCLUDED.has_text, 
-			has_pic = EXCLUDED.has_pic,
-			count_check = EXCLUDED.count_check,
-			status = EXCLUDED.status,
-			last_photo_id = EXCLUDED.last_photo_id,
-			last_message_id = EXCLUDED.last_message_id;`
-
-	_, err := d.conn.Exec(insertSQL, user.TgID, user.SelectPic, user.HasText, user.HasPic, user.CountCheck,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`
+	_, err = d.conn.Exec(insertSQL, user.TgID, user.SelectPic, user.HasText, user.HasPic, user.CountCheck,
 		user.Status, user.LastPhotoID, user.LastMessageID)
 	if err != nil {
 		return fmt.Errorf("error in insert: %w", err)

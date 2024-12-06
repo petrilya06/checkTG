@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/checkTG/db"
 	tg "github.com/mymmrac/telego"
-	tu "github.com/mymmrac/telego/telegoutil"
 	"log"
 )
 
-func HandleMessage(bot *tg.Bot, update *tg.Update, user *db.User, userID int64) {
+func HandleMessage(update *tg.Update, user *db.User, userID int64) {
 	if update.Message.Text == "/start" {
 		newUser := db.User{
 			TgID:          userID,
@@ -24,44 +23,20 @@ func HandleMessage(bot *tg.Bot, update *tg.Update, user *db.User, userID int64) 
 		if err := database.AddUser(newUser); err != nil {
 			log.Printf("error in add user: %v", err)
 		}
+
+		user.Status = StateStart
+		if err := database.UpdateUser(*user); err != nil {
+			log.Printf("error updating user status: %v", err)
+		}
 	}
 
-	switch user.Status {
-	case "start":
-		_, _ = bot.SendMessage(tu.Message(
-			tu.ID(userID),
-			"Привет! Помогу вам подзаработать очень простым способом.",
-		).WithReplyMarkup(ChooseKeyboard))
-
+	if update.Message.Text == "Выбрать аватарку" {
 		user.Status = StateChoosePic
-		err := database.UpdateUser(*user)
-		if err != nil {
-			return
+		if err := database.UpdateUser(*user); err != nil {
+			log.Printf("error updating user status: %v", err)
 		}
 
-	case "choose":
-		SendPhotoKeyboard(bot, user)
-		downloadPhoto(bot, user)
-
-		user.Status = StateCheckPic
-		err := database.UpdateUser(*user)
-		if err != nil {
-			return
-		}
-
-	case "check":
-		downloadPhoto(bot, user)
-		ComparePhotos(fmt.Sprintf("src/%d.jpg", user.SelectPic),
-			fmt.Sprintf("src/photos/%d.jpg", user.TgID))
-
-		user.Status = StateWait
-		err := database.UpdateUser(*user)
-		if err != nil {
-			return
-		}
-
-	case "wait":
-
+		fmt.Println(user)
 	}
 }
 
@@ -84,12 +59,12 @@ func HandleCallbackQuery(bot *tg.Bot, update *tg.Update, user *db.User) {
 
 	case "yes":
 		user.SelectPic = Index
-		err := database.UpdateUser(*user)
-		if err != nil {
+		if err := database.UpdateUser(*user); err != nil {
 			return
 		}
 
 		DeleteMessages(bot, user, []int{user.LastPhotoID, user.LastMessageID})
-		SendText(bot, user, fmt.Sprintf("Спасибо за подтверждение! Вам назначена выплата %s рублей", Price[Index]))
+		SendTextWithKeyboard(bot, user, fmt.Sprintf("Спасибо за подтверждение! "+
+			"Вам назначена выплата %s рублей", Price[Index]), ChooseKeyboard)
 	}
 }
